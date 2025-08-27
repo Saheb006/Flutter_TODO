@@ -115,12 +115,14 @@ class _AddTodoScreenState extends ConsumerState<AddTodoScreen> {
     showDialog(
       context: context,
       builder: (context) => _SubTodoDialog(
-        onAdd: (title) {
+        onAdd: (title, dueDate, dueTime) {
           setState(() {
             _subTodos.add(SubTodo(
               id: const Uuid().v4(),
               title: title,
               completed: false,
+              dueDate: dueDate,
+              dueTime: dueTime,
               createdAt: DateTime.now(),
             ));
           });
@@ -294,6 +296,12 @@ class _AddTodoScreenState extends ConsumerState<AddTodoScreen> {
               return Card(
                 child: ListTile(
                   title: Text(subTodo.title),
+                  subtitle: subTodo.dueDate != null || subTodo.dueTime != null
+                      ? Text(
+                          '${subTodo.dueDate != null ? '${subTodo.dueDate!.day}/${subTodo.dueDate!.month}/${subTodo.dueDate!.year}' : ''} ${subTodo.dueTime ?? ''}'.trim(),
+                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                        )
+                      : null,
                   trailing: IconButton(
                     icon: const Icon(Icons.delete),
                     onPressed: () => _removeSubTodo(index),
@@ -309,7 +317,7 @@ class _AddTodoScreenState extends ConsumerState<AddTodoScreen> {
 }
 
 class _SubTodoDialog extends StatefulWidget {
-  final Function(String) onAdd;
+  final Function(String, DateTime?, String?) onAdd;
 
   const _SubTodoDialog({required this.onAdd});
 
@@ -319,6 +327,8 @@ class _SubTodoDialog extends StatefulWidget {
 
 class _SubTodoDialogState extends State<_SubTodoDialog> {
   final _controller = TextEditingController();
+  DateTime? _dueDate;
+  TimeOfDay? _dueTime;
 
   @override
   void dispose() {
@@ -326,17 +336,68 @@ class _SubTodoDialogState extends State<_SubTodoDialog> {
     super.dispose();
   }
 
+  Future<void> _selectDate() async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _dueDate ?? DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (date != null) {
+      setState(() => _dueDate = date);
+    }
+  }
+
+  Future<void> _selectTime() async {
+    final time = await showTimePicker(
+      context: context,
+      initialTime: _dueTime ?? TimeOfDay.now(),
+    );
+    if (time != null) {
+      setState(() => _dueTime = time);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
       title: const Text('Add Subtask'),
-      content: TextField(
-        controller: _controller,
-        decoration: const InputDecoration(
-          hintText: 'Enter subtask title',
-          border: OutlineInputBorder(),
-        ),
-        autofocus: true,
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: _controller,
+            decoration: const InputDecoration(
+              hintText: 'Enter subtask title',
+              border: OutlineInputBorder(),
+            ),
+            autofocus: true,
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _selectDate,
+                  icon: const Icon(Icons.calendar_today),
+                  label: Text(_dueDate == null 
+                      ? 'Set Due Date' 
+                      : '${_dueDate!.day}/${_dueDate!.month}/${_dueDate!.year}'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _selectTime,
+                  icon: const Icon(Icons.access_time),
+                  label: Text(_dueTime == null 
+                      ? 'Set Time' 
+                      : _dueTime!.format(context)),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
       actions: [
         TextButton(
@@ -347,7 +408,10 @@ class _SubTodoDialogState extends State<_SubTodoDialog> {
           onPressed: () {
             final title = _controller.text.trim();
             if (title.isNotEmpty) {
-              widget.onAdd(title);
+              final dueTime = _dueTime != null 
+                  ? '${_dueTime!.hour.toString().padLeft(2, '0')}:${_dueTime!.minute.toString().padLeft(2, '0')}'
+                  : null;
+              widget.onAdd(title, _dueDate, dueTime);
               Navigator.pop(context);
             }
           },

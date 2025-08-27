@@ -157,4 +157,57 @@ class TodosNotifier extends StateNotifier<AsyncValue<List<Todo>>> {
       error: (error, stack) => state,
     );
   }
+
+  Future<void> toggleSubTodoComplete(String todoId, String subTodoId) async {
+    state = state.when(
+      data: (todos) {
+        final todoIndex = todos.indexWhere((t) => t.id == todoId);
+        if (todoIndex != -1) {
+          final todo = todos[todoIndex];
+          final subTodoIndex = todo.subTodos.indexWhere((st) => st.id == subTodoId);
+          if (subTodoIndex != -1) {
+            final subTodo = todo.subTodos[subTodoIndex];
+            final updatedSubTodos = [...todo.subTodos];
+            updatedSubTodos[subTodoIndex] = subTodo.copyWith(completed: !subTodo.completed);
+            
+            final updatedTodo = todo.copyWith(subTodos: updatedSubTodos);
+            updateTodo(updatedTodo);
+            
+            final newTodos = [...todos];
+            newTodos[todoIndex] = updatedTodo;
+            return AsyncValue.data(newTodos);
+          }
+        }
+        return state;
+      },
+      loading: () => state,
+      error: (error, stack) => state,
+    );
+  }
+
+  Future<void> updateSubTodo(String todoId, SubTodo updatedSubTodo) async {
+    state = state.when(
+      data: (todos) {
+        final todoIndex = todos.indexWhere((t) => t.id == todoId);
+        if (todoIndex != -1) {
+          final todo = todos[todoIndex];
+          final subTodoIndex = todo.subTodos.indexWhere((st) => st.id == updatedSubTodo.id);
+          if (subTodoIndex != -1) {
+            final updatedSubTodos = [...todo.subTodos];
+            updatedSubTodos[subTodoIndex] = updatedSubTodo;
+            
+            final updatedTodo = todo.copyWith(subTodos: updatedSubTodos);
+            updateTodo(updatedTodo);
+            
+            final newTodos = [...todos];
+            newTodos[todoIndex] = updatedTodo;
+            return AsyncValue.data(newTodos);
+          }
+        }
+        return state;
+      },
+      loading: () => state,
+      error: (error, stack) => state,
+    );
+  }
 }
